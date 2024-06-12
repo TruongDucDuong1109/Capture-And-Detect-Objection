@@ -10,6 +10,8 @@ from ultralytics import YOLO
 from datetime import datetime
 
 
+WIDTH = 1080
+HEIGHT = 720
 class VideoThread(QThread):
     change_pixmap_signal = pyqtSignal(QImage)
     frame_captured_signal = pyqtSignal()
@@ -17,26 +19,33 @@ class VideoThread(QThread):
     def __init__(self):
         super().__init__()
         self._run_flag = True
-        self.cap = cv2.VideoCapture(1)
-        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1080)
-        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+        self.picam2 = Picamera2()
+        self.picam2.configure(self.picam2.create_preview_configuration(main={"size": (WIDTH,HEIGHT), "format": "RGB888"}))
+        self.picam2.set_controls({"AwbEnable":1,
+            "AwbMode": 0,  # Cân bằng trắng tự động (1 là giá trị tương ứng với chế độ Auto)
+            #"Brightness": 0.5,  # Độ sáng trung bình (giá trị float)
+            #"Contrast": 1.0,    # Tăng độ tương phản (giá trị float)
+            #"Saturation": 1.0,  # Tăng độ bão hòa (giá trị float)
+            "Sharpness": 1.0    # Tăng độ sắc nét (giá trị float)
+            })
+        self.picam2.start()
         self.current_frame = None
 
     def run(self):
         while self._run_flag:
-            ret, cv_img = self.cap.read()
-            if ret:
-                qt_img = self.convert_cv_qt(cv_img)
-                self.current_frame = cv_img
-                self.change_pixmap_signal.emit(qt_img)
+            frame = self.picam2.capture_array()
+            qt_img = self.convert_cv_qt(frame)
+            self.current_frame = frame
+            self.change_pixmap_signal.emit(qt_img)
 
     def stop(self):
         self._run_flag = False
-        self.cap.release()
-        self.quit()
+        self.picam2.stop()
+        self.picam2.close()
+        self.wait()  # Ensure the thread has finished
 
     def convert_cv_qt(self, cv_img):
-        rgb_image = cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB)
+        rgb_image = cv_img[:,:,::-1].copy()
         h, w, ch = rgb_image.shape
         bytes_per_line = ch * w
         convert_to_Qt_format = QImage(rgb_image.data, w, h, bytes_per_line, QImage.Format_RGB888)
@@ -203,12 +212,11 @@ class TehseenCode(QDialog):
         self.TEXT.setText(f'Total objects detected: {self.total_detected_objects}')
         
     def convert_cv_qt(self, cv_img):
-        rgb_image = cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB)
+        rgb_image = cv_img[:,:,::-1].copy()
         h, w, ch = rgb_image.shape
         bytes_per_line = ch * w
         convert_to_Qt_format = QImage(rgb_image.data, w, h, bytes_per_line, QImage.Format_RGB888)
         p = convert_to_Qt_format.scaled(640, 480, QtCore.Qt.KeepAspectRatio)
-       
         return p
 
 if __name__ == "__main__":
