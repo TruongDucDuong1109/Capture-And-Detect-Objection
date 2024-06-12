@@ -4,11 +4,14 @@ import os
 from PyQt5 import QtCore
 from PyQt5.QtCore import pyqtSignal, pyqtSlot, QThread
 from PyQt5.QtGui import QImage, QPixmap
-from PyQt5.QtWidgets import QDialog, QApplication, QFileDialog,QHBoxLayout
+from PyQt5.QtWidgets import QDialog, QApplication, QFileDialog, QHBoxLayout
 from PyQt5.uic import loadUi
 from ultralytics import YOLO
 from picamera2 import Picamera2, Preview
 from datetime import datetime
+
+WIDTH = 1080
+HEIGHT = 720
 
 class VideoThread(QThread):
     change_pixmap_signal = pyqtSignal(QImage)
@@ -18,7 +21,14 @@ class VideoThread(QThread):
         super().__init__()
         self._run_flag = True
         self.picam2 = Picamera2()
-        self.picam2.configure(self.picam2.create_preview_configuration(main={"size": (1080, 720)}))
+        self.picam2.configure(self.picam2.create_preview_configuration(main={"size": (WIDTH,HEIGHT), "format": "RGB888"}))
+        self.picam2.set_controls({"AwbEnable":1,
+            "AwbMode": 0,  # Cân bằng trắng tự động (1 là giá trị tương ứng với chế độ Auto)
+            #"Brightness": 0.5,  # Độ sáng trung bình (giá trị float)
+            #"Contrast": 1.0,    # Tăng độ tương phản (giá trị float)
+            #"Saturation": 1.0,  # Tăng độ bão hòa (giá trị float)
+            "Sharpness": 1.0    # Tăng độ sắc nét (giá trị float)
+            })
         self.picam2.start()
         self.current_frame = None
 
@@ -32,10 +42,11 @@ class VideoThread(QThread):
     def stop(self):
         self._run_flag = False
         self.picam2.stop()
-        self.quit()
+        self.picam2.close()
+        self.wait()  # Ensure the thread has finished
 
     def convert_cv_qt(self, cv_img):
-        rgb_image = cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB)
+        rgb_image = cv_img[:,:,::-1].copy()
         h, w, ch = rgb_image.shape
         bytes_per_line = ch * w
         convert_to_Qt_format = QImage(rgb_image.data, w, h, bytes_per_line, QImage.Format_RGB888)
@@ -45,13 +56,13 @@ class VideoThread(QThread):
 class TehseenCode(QDialog):
     def __init__(self):
         super(TehseenCode, self).__init__()
-        loadUi('loadui.ui', self)
+        loadUi('loadui3.ui', self)
         self.logic = 0
         self.value = 1
         self.img_folder = "img"
         os.makedirs(self.img_folder, exist_ok=True)
         self.SHOW.clicked.connect(self.start_video)
-        self.TEXT.setText('Press "SHOW" to connect with camera')
+        self.TEXT.setText('Press "CAMERA" to connect with camera')
         self.CAPTURE.clicked.connect(self.CaptureClicked)
         self.QUIT.clicked.connect(self.quitClicked)
         self.UPLOAD.clicked.connect(self.uploadClicked)
@@ -60,26 +71,23 @@ class TehseenCode(QDialog):
         self.setup_yolo_model()
         self.processedImgLabel.setScaledContents(True)
 
-     # Tạo một layout ngang để chứa label camera và label mới
         layout = QHBoxLayout()
         self.frameRight.setLayout(layout)
-
-        # Thêm label camera và label mới vào layout
         layout.addWidget(self.imgLabel)
         layout.addWidget(self.processedImgLabel)
-
-        # Thiết lập layout để căn giữa phần tử
         layout.setAlignment(QtCore.Qt.AlignCenter)
         
     def update_processed_image(self, img_path):
         cv_img = cv2.imread(img_path)
+        #cv_img = cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB)  # Ensure correct color conversion
         qt_img = self.convert_cv_qt(cv_img)
-        self.processedImgLabel.setPixmap(QPixmap.fromImage(qt_img))
+        #self.processedImgLabel.setPixmap(QPixmap.fromImage(qt_img))
+        self.change_pixmap_signal.emit(qt_img)
         
     def setup_yolo_model(self):
         folder_path = "runs/detect"
         self.latest_trainedfolder, _ = self.get_latest_modified_train_folder(folder_path, 'train')
-        self.latest_trainedfolder = "runs/detect/train50"
+        self.latest_trainedfolder = "runs/detect/train73"
         self.model = YOLO(task='detect', model=f"{self.latest_trainedfolder}/weights/best.pt")
 
     def get_latest_modified_train_folder(self, folder_path, subname):
@@ -116,8 +124,9 @@ class TehseenCode(QDialog):
             img_path = f"{self.img_folder}/image{self.value}.jpg"
             cv2.imwrite(img_path, cv_img)
             self.value += 1
-            self.thread.stop()  # Stop the camera thread before processing
             self.detect_image_and_display(img_path)
+            # Restart the video thread to resume the video stream
+            self.start_video()
 
     def uploadClicked(self):
         options = QFileDialog.Options()
@@ -125,7 +134,6 @@ class TehseenCode(QDialog):
         if fileName:
             self.display_image(fileName, self.imgLabel)  # Display the uploaded image on the left label
             self.detect_image_and_display(fileName)
-
 
     def detect_image_and_display(self, image_path):
         detected_image_path = self.detect_image(image_path)
@@ -184,8 +192,10 @@ class TehseenCode(QDialog):
 
     def display_image(self, image_path, label):
         cv_img = cv2.imread(image_path)
+        #cv_img = cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB)  # Ensure correct color conversion
         qt_img = self.convert_cv_qt(cv_img)
         label.setPixmap(QPixmap.fromImage(qt_img))
+        
 
     def update_processed_image(self, img_path):
         self.display_image(img_path, self.processedImgLabel)
@@ -196,7 +206,7 @@ class TehseenCode(QDialog):
         sys.exit()
 
     def convert_cv_qt(self, cv_img):
-        rgb_image = cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB)
+        rgb_image = cv_img[:,:,::-1].copy()
         h, w, ch = rgb_image.shape
         bytes_per_line = ch * w
         convert_to_Qt_format = QImage(rgb_image.data, w, h, bytes_per_line, QImage.Format_RGB888)
@@ -206,6 +216,6 @@ class TehseenCode(QDialog):
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     window = TehseenCode()
-    window.setWindowTitle('TehseenCode')
+    window.setWindowTitle('PNJP Jewelry Counting')
     window.show()
     sys.exit(app.exec_())
