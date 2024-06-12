@@ -91,8 +91,8 @@
     <rect>
      <x>30</x>
      <y>670</y>
-     <width>121</width>
-     <height>41</height>
+     <width>111</width>
+     <height>51</height>
     </rect>
    </property>
    <property name="font">
@@ -111,8 +111,30 @@
   <widget class="QPushButton" name="CAPTURE">
    <property name="geometry">
     <rect>
-     <x>600</x>
+     <x>680</x>
      <y>710</y>
+     <width>120</width>
+     <height>55</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <weight>75</weight>
+     <bold>true</bold>
+    </font>
+   </property>
+   <property name="cursor">
+    <cursorShape>PointingHandCursor</cursorShape>
+   </property>
+   <property name="text">
+    <string>Capture</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="RESET">
+   <property name="geometry">
+    <rect>
+     <x>320</x>
+     <y>670</y>
      <width>111</width>
      <height>51</height>
     </rect>
@@ -127,7 +149,7 @@
     <cursorShape>PointingHandCursor</cursorShape>
    </property>
    <property name="text">
-    <string>Capture</string>
+    <string>RESET</string>
    </property>
   </widget>
   <widget class="QPushButton" name="QUIT">
@@ -247,8 +269,8 @@
   <widget class="QPushButton" name="UPLOAD">
    <property name="geometry">
     <rect>
-     <x>730</x>
-     <y>710</y>
+     <x>170</x>
+     <y>670</y>
      <width>111</width>
      <height>51</height>
     </rect>
