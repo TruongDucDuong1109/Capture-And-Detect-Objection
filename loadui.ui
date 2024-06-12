@@ -130,6 +130,28 @@
     <string>Capture</string>
    </property>
   </widget>
+  <widget class="QPushButton" name="RESET">
+   <property name="geometry">
+    <rect>
+     <x>900</x>
+     <y>710</y>
+     <width>111</width>
+     <height>51</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <weight>75</weight>
+     <bold>true</bold>
+    </font>
+   </property>
+   <property name="cursor">
+    <cursorShape>PointingHandCursor</cursorShape>
+   </property>
+   <property name="text">
+    <string>RESET</string>
+   </property>
+  </widget>
   <widget class="QPushButton" name="QUIT">
    <property name="geometry">
     <rect>
